@@ -84,6 +84,8 @@ template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
   return res;
 }
 
+// TODO Reduce allocations
+
 /**
  * A step of the Karatsuba function.
  * @param deg_bnd power-of-2 degree bound
