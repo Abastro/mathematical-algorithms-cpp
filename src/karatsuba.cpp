@@ -67,6 +67,20 @@ template <typename R> vector<R> poly_sub(vector<R> &a, vector<R> &b) {
   return res;
 }
 
+// Add polynomials in-place assuming the size is allocated
+template <typename R>
+void poly_add_inplace(span<R> &a, span<R> &b, span<R> &result) {
+  for (size_t i = 0; i < a.size(); i++)
+    result[i] = a[i] + b[i];
+}
+
+// Subtract polynomials in-place assuming the size is allocated
+template <typename R>
+void poly_sub_inplace(span<R> &a, span<R> &b, span<R> &result) {
+  for (size_t i = 0; i < a.size(); i++)
+    result[i] = a[i] - b[i];
+}
+
 // Shift up degrees by n
 template <typename R> vector<R> poly_shift_up(int n, vector<R> &p) {
   auto result = p;
@@ -94,31 +108,34 @@ template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
 
 #define THRESHOLD 1
 // TODO Reduce allocations
-// Send this to professor
 
 /**
  * A step of the Karatsuba function.
  * @param deg_bnd power-of-2 degree bound
  */
 template <typename R>
-vector<R> poly_mult_Karatsuba_step(const size_t deg_bnd, vector<R> &a,
-                                   vector<R> &b) {
-  if (deg_bnd <= THRESHOLD)
-    return poly_mult_basic(a, b);
+vector<R> poly_mult_Karatsuba_step(const size_t deg_bnd, span<R> &a,
+                                   span<R> &b) {
+  if (deg_bnd <= THRESHOLD) {
+    auto vec_a = vector(a.begin(), a.end());
+    auto vec_b = vector(b.begin(), b.end());
+    return poly_mult_basic(vec_a, vec_b);
+  }
 
   const auto next_bnd = deg_bnd >> 1;
   const auto next_bnd_in_a = min(next_bnd, a.size());
   const auto next_bnd_in_b = min(next_bnd, b.size());
-  auto a0 = vector(a.begin(), a.begin() + next_bnd_in_a);
-  auto a1 = vector(a.begin() + next_bnd_in_a, a.end());
-  auto b0 = vector(b.begin(), b.begin() + next_bnd_in_b);
-  auto b1 = vector(b.begin() + next_bnd_in_b, b.end());
+  auto a0 = span(a.begin(), a.begin() + next_bnd_in_a);
+  auto a1 = span(a.begin() + next_bnd_in_a, a.end());
+  auto b0 = span(b.begin(), b.begin() + next_bnd_in_b);
+  auto b1 = span(b.begin() + next_bnd_in_b, b.end());
 
   auto prod0 = poly_mult_Karatsuba_step(next_bnd, a0, b0);
   auto prod1 = poly_mult_Karatsuba_step(next_bnd, a1, b1);
-  auto a01 = poly_add(a0, a1);
-  auto b01 = poly_add(b0, b1);
-  auto prod_add = poly_mult_Karatsuba_step(next_bnd, a01, b01);
+  // Use a0, b0 to store the addition.
+  poly_add_inplace(a0, a1, a0);
+  poly_add_inplace(b0, b1, b0);
+  auto prod_add = poly_mult_Karatsuba_step(next_bnd, a0, b0);
 
   auto tmp1 = poly_sub(prod_add, prod0);
   auto tmp2 = poly_sub(tmp1, prod1);
@@ -134,7 +151,9 @@ vector<R> poly_mult_Karatsuba(vector<R> &a, vector<R> &b) {
   while (deg_bound < max(a.size(), b.size()))
     deg_bound = deg_bound << 1;
 
-  return poly_mult_Karatsuba_step(deg_bound, a, b);
+  auto span_a = span(a);
+  auto span_b = span(b);
+  return poly_mult_Karatsuba_step(deg_bound, span_a, span_b);
 }
 
 void basic_vs_Karatsuba(size_t size) {
@@ -184,6 +203,7 @@ int main() {
   basic_vs_Karatsuba(2048);
   basic_vs_Karatsuba(4096);
   basic_vs_Karatsuba(8192);
+  basic_vs_Karatsuba(16384);
 
   // {
   //   auto p = random_real_vector(4000);
