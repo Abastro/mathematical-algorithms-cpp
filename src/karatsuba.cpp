@@ -21,7 +21,7 @@ template <typename T> ostream &operator<<(ostream &os, const vector<T> &v) {
   return os;
 }
 
-vector<Real> random_real_vector(int size) {
+vector<Real> random_real_vector(size_t size) {
   auto result = vector<Real>();
   for (int i = 0; i < size; i++) {
     result.push_back((double)rand() / (double)RAND_MAX);
@@ -84,6 +84,7 @@ template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
   return res;
 }
 
+#define THRESHOLD 1
 // TODO Reduce allocations
 
 /**
@@ -93,7 +94,7 @@ template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
 template <typename R>
 vector<R> poly_mult_Karatsuba_step(const size_t deg_bnd, vector<R> &a,
                                    vector<R> &b) {
-  if (deg_bnd <= 1)
+  if (deg_bnd <= THRESHOLD)
     return poly_mult_basic(a, b);
 
   const auto next_bnd = deg_bnd >> 1;
@@ -148,8 +149,8 @@ void basic_vs_Karatsuba(size_t size) {
 
 int main() {
   {
-    auto p = vector<Real>{1.0, 2.0};
-    auto q = vector<Real>{3.0, 4.0, 5.0};
+    auto p = vector<int>{1, 2};
+    auto q = vector<int>{3, 4, 5};
     cout << "P: " << p << endl;
     cout << "Q: " << q << endl;
     cout << "P + Q: " << poly_add(p, q) << endl;
@@ -167,13 +168,13 @@ int main() {
     cout << "Karatsuba P * Q: " << poly_mult_Karatsuba(p, q) << endl;
   }
 
-  basic_vs_Karatsuba(125);
-  basic_vs_Karatsuba(250);
-  basic_vs_Karatsuba(500);
-  basic_vs_Karatsuba(1000);
-  basic_vs_Karatsuba(2000);
-  // Approaches at this point
-  basic_vs_Karatsuba(4000);
+  basic_vs_Karatsuba(128);
+  basic_vs_Karatsuba(256);
+  basic_vs_Karatsuba(512);
+  basic_vs_Karatsuba(1024);
+  basic_vs_Karatsuba(2048);
+  basic_vs_Karatsuba(4096);
+  basic_vs_Karatsuba(8192);
 
   // {
   //   auto p = random_real_vector(4000);
