@@ -21,6 +21,7 @@ template <typename T> ostream &operator<<(ostream &os, const vector<T> &v) {
   return os;
 }
 
+
 vector<Real> random_real_vector(size_t size) {
   auto result = vector<Real>();
   for (int i = 0; i < size; i++) {
