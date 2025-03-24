@@ -21,10 +21,17 @@ template <typename T> ostream &operator<<(ostream &os, const vector<T> &v) {
   return os;
 }
 
+vector<int> random_int_vector(size_t size) {
+  auto result = vector<int>();
+  for (size_t i = 0; i < size; i++) {
+    result.push_back(rand() % 100);
+  }
+  return result;
+}
 
 vector<Real> random_real_vector(size_t size) {
   auto result = vector<Real>();
-  for (int i = 0; i < size; i++) {
+  for (size_t i = 0; i < size; i++) {
     result.push_back((double)rand() / (double)RAND_MAX);
   }
   return result;
@@ -87,6 +94,7 @@ template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
 
 #define THRESHOLD 1
 // TODO Reduce allocations
+// Send this to professor
 
 /**
  * A step of the Karatsuba function.
@@ -130,8 +138,8 @@ vector<R> poly_mult_Karatsuba(vector<R> &a, vector<R> &b) {
 }
 
 void basic_vs_Karatsuba(size_t size) {
-  auto p = random_real_vector(size);
-  auto q = random_real_vector(size);
+  auto p = random_int_vector(size);
+  auto q = random_int_vector(size);
 
   cout << "Degree " << size - 1 << endl;
 
@@ -161,8 +169,8 @@ int main() {
   }
 
   {
-    auto p = random_real_vector(6);
-    auto q = random_real_vector(8);
+    auto p = random_int_vector(6);
+    auto q = random_int_vector(8);
     cout << "P: " << p << endl;
     cout << "Q: " << q << endl;
     cout << "basic P * Q: " << poly_mult_basic(p, q) << endl;
