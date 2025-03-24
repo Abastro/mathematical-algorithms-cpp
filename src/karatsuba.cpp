@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <complex>
 #include <iostream>
@@ -17,6 +18,14 @@ typedef double Real;
 template <typename T> ostream &operator<<(ostream &os, const vector<T> &v) {
   for (size_t i = 0; i < v.size(); i++) {
     os << v[i] << " ";
+  }
+  return os;
+}
+
+
+template <typename T> ostream &operator<<(ostream &os, const span<T> &v) {
+  for (auto x : v) {
+    os << x << " ";
   }
   return os;
 }
@@ -97,66 +106,62 @@ template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
   return res;
 }
 
-#define THRESHOLD 1
+#define THRESHOLD 32
 // TODO Reduce allocations
 
-template <typename R>
-struct Karatsuba {
+template <typename R> struct Karatsuba {
   vector<R> result;
 };
 
 /**
  * A step of the Karatsuba function.
  * @param deg_bnd power-of-2 degree bound
+ * @param buffer the buffer which is used only throughout the invocation
  */
 template <typename R>
-vector<R> poly_mult_Karatsuba_step(const size_t deg_bnd, span<R> &a,
-                                   span<R> &b) {
+void poly_mult_Karatsuba_step(const size_t deg_bnd, span<R> &a, span<R> &b,
+                              span<R> &result, span<R> &buffer) {
   if (deg_bnd <= THRESHOLD) {
     auto vec_a = vector(a.begin(), a.end());
     auto vec_b = vector(b.begin(), b.end());
-    return poly_mult_basic(vec_a, vec_b);
+    auto result_vec = poly_mult_basic(vec_a, vec_b);
+    copy(result_vec.begin(), result_vec.end(), result.begin());
+    return;
   }
 
-  auto result = vector<R>(deg_bnd << 1, 0);
-
   const auto next_bnd = deg_bnd >> 1;
-  auto a0 = span(a.begin(), next_bnd);
-  auto a1 = span(a.begin() + next_bnd, next_bnd);
-  auto b0 = span(b.begin(), next_bnd);
-  auto b1 = span(b.begin() + next_bnd, next_bnd);
-  auto a01 = vector<R>(next_bnd);
-  auto b01 = vector<R>(next_bnd);
-  auto span_a01 = span(a01);
-  auto span_b01 = span(b01);
+  auto a0 = a.subspan(0, next_bnd);
+  auto a1 = a.subspan(next_bnd, next_bnd);
+  auto b0 = b.subspan(0, next_bnd);
+  auto b1 = b.subspan(next_bnd, next_bnd);
+  
+  auto a01 = buffer.subspan(0, next_bnd);
+  auto b01 = buffer.subspan(next_bnd, next_bnd);
 
-  auto prod0 = poly_mult_Karatsuba_step(next_bnd, a0, b0);
-  auto prod1 = poly_mult_Karatsuba_step(next_bnd, a1, b1);
-  add_inplace(a0, a1, span_a01);
-  add_inplace(b0, b1, span_b01);
-  auto prod_add = poly_mult_Karatsuba_step(next_bnd, span_a01, span_b01);
+  auto prod0 = result.subspan(0, deg_bnd);
+  auto prod1 = result.subspan(deg_bnd, deg_bnd);
+  auto prod_add = buffer.subspan(2 * next_bnd, deg_bnd);
 
-  auto span_prod0 = span(prod0);
-  auto span_prod1 = span(prod1);
-  auto span_prod_add = span(prod_add);
+  // Buffer which does not overlap with currently used memory
+  auto buffer_next = buffer.subspan(4 * next_bnd, 4 * next_bnd);
+  auto new_buffer_vec = vector<R>(4 * next_bnd);
+  auto new_buffer = span(new_buffer_vec);
+
+  // correctly put into prod0 and prod1 position
+  poly_mult_Karatsuba_step(next_bnd, a0, b0, prod0, new_buffer); // need new_buffer to avoid rewrite; why?
+  poly_mult_Karatsuba_step(next_bnd, a1, b1, prod1, buffer_next);
+
+  add_inplace(a0, a1, a01);
+  add_inplace(b0, b1, b01);
+  poly_mult_Karatsuba_step(next_bnd, a01, b01, prod_add, buffer_next);
 
   // adjust prod_add
-  sub_inplace(span_prod_add, span_prod0, span_prod_add);
-  sub_inplace(span_prod_add, span_prod1, span_prod_add);
-
-  // Add high term at X^deg_bnd position
-  auto span_result_high = span(result.begin() + deg_bnd, prod1.size());
-  add_inplace(span_prod1, span_result_high, span_result_high);
+  sub_inplace(prod_add, prod0, prod_add);
+  sub_inplace(prod_add, prod1, prod_add);
 
   // Add middle term at X^next_bnd position
-  auto span_result_mid = span(result.begin() + next_bnd, span_prod_add.size());
-  add_inplace(span_prod_add, span_result_mid, span_result_mid);
-
-  // Add low term at X^0 position
-  auto span_result_low = span(result.begin(), prod0.size());
-  add_inplace(span_prod0, span_result_low, span_result_low);
-
-  return result;
+  auto result_mid = result.subspan(next_bnd, deg_bnd);
+  add_inplace(prod_add, result_mid, result_mid);
 }
 
 template <typename R>
@@ -167,9 +172,15 @@ vector<R> poly_mult_Karatsuba(vector<R> &a, vector<R> &b) {
 
   a.resize(deg_bound);
   b.resize(deg_bound);
+  auto result = vector<R>(deg_bound << 1);
+  auto buffer = vector<R>(deg_bound * 4);
+
   auto span_a = span(a);
   auto span_b = span(b);
-  return poly_mult_Karatsuba_step(deg_bound, span_a, span_b);
+  auto span_result = span(result);
+  auto span_buffer = span(buffer);
+  poly_mult_Karatsuba_step(deg_bound, span_a, span_b, span_result, span_buffer);
+  return result;
 }
 
 void basic_vs_Karatsuba(size_t size) {
@@ -188,6 +199,19 @@ void basic_vs_Karatsuba(size_t size) {
   poly_mult_Karatsuba(p, q);
   end = chrono::high_resolution_clock::now();
   spent = chrono::duration<double>(end - begin);
+  cout << "Karatsuba took " << spent.count() << "s" << endl;
+}
+
+void only_Karatsuba(size_t size) {
+  auto p = random_int_vector(size);
+  auto q = random_int_vector(size);
+
+  cout << "Degree " << size - 1 << endl;
+
+  auto begin = chrono::high_resolution_clock::now();
+  poly_mult_Karatsuba(p, q);
+  auto end = chrono::high_resolution_clock::now();
+  auto spent = chrono::duration<double>(end - begin);
   cout << "Karatsuba took " << spent.count() << "s" << endl;
 }
 
@@ -220,6 +244,10 @@ int main() {
   basic_vs_Karatsuba(4096);
   basic_vs_Karatsuba(8192);
   basic_vs_Karatsuba(16384);
+  
+  only_Karatsuba(32768);
+  only_Karatsuba(65536);
+  only_Karatsuba(131072);
 
   // {
   //   auto p = random_real_vector(4000);
