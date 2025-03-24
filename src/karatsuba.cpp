@@ -249,15 +249,5 @@ int main() {
   only_Karatsuba(65536);
   only_Karatsuba(131072);
 
-  // {
-  //   auto p = random_real_vector(4000);
-  //   auto q = random_real_vector(4000);
-  //   auto begin = chrono::high_resolution_clock::now();
-  //   poly_mult_Karatsuba(p, q);
-  //   auto end = chrono::high_resolution_clock::now();
-  //   auto spent = chrono::duration<double>(end - begin);
-  //   cout << "Karatsuba took " << spent.count() << "s" << endl;
-  // }
-
   return 0;
 }
