@@ -69,25 +69,16 @@ template <typename R> vector<R> poly_sub(vector<R> &a, vector<R> &b) {
 
 // Add polynomials in-place assuming the size is allocated
 template <typename R>
-void poly_add_inplace(span<R> &a, span<R> &b, span<R> &result) {
+void add_inplace(span<R> &a, span<R> &b, span<R> &result) {
   for (size_t i = 0; i < a.size(); i++)
     result[i] = a[i] + b[i];
 }
 
 // Subtract polynomials in-place assuming the size is allocated
 template <typename R>
-void poly_sub_inplace(span<R> &a, span<R> &b, span<R> &result) {
+void sub_inplace(span<R> &a, span<R> &b, span<R> &result) {
   for (size_t i = 0; i < a.size(); i++)
     result[i] = a[i] - b[i];
-}
-
-// Shift up degrees by n
-template <typename R> vector<R> poly_shift_up(int n, vector<R> &p) {
-  auto result = p;
-  for (int i = 0; i < n; i++) {
-    result.insert(result.begin(), 0);
-  }
-  return result;
 }
 
 // Basic polynomial multiplication
@@ -109,6 +100,11 @@ template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
 #define THRESHOLD 1
 // TODO Reduce allocations
 
+template <typename R>
+struct Karatsuba {
+  vector<R> result;
+};
+
 /**
  * A step of the Karatsuba function.
  * @param deg_bnd power-of-2 degree bound
@@ -122,27 +118,45 @@ vector<R> poly_mult_Karatsuba_step(const size_t deg_bnd, span<R> &a,
     return poly_mult_basic(vec_a, vec_b);
   }
 
+  auto result = vector<R>(deg_bnd << 1, 0);
+
   const auto next_bnd = deg_bnd >> 1;
-  const auto next_bnd_in_a = min(next_bnd, a.size());
-  const auto next_bnd_in_b = min(next_bnd, b.size());
-  auto a0 = span(a.begin(), a.begin() + next_bnd_in_a);
-  auto a1 = span(a.begin() + next_bnd_in_a, a.end());
-  auto b0 = span(b.begin(), b.begin() + next_bnd_in_b);
-  auto b1 = span(b.begin() + next_bnd_in_b, b.end());
+  auto a0 = span(a.begin(), next_bnd);
+  auto a1 = span(a.begin() + next_bnd, next_bnd);
+  auto b0 = span(b.begin(), next_bnd);
+  auto b1 = span(b.begin() + next_bnd, next_bnd);
+  auto a01 = vector<R>(next_bnd);
+  auto b01 = vector<R>(next_bnd);
+  auto span_a01 = span(a01);
+  auto span_b01 = span(b01);
 
   auto prod0 = poly_mult_Karatsuba_step(next_bnd, a0, b0);
   auto prod1 = poly_mult_Karatsuba_step(next_bnd, a1, b1);
-  // Use a0, b0 to store the addition.
-  poly_add_inplace(a0, a1, a0);
-  poly_add_inplace(b0, b1, b0);
-  auto prod_add = poly_mult_Karatsuba_step(next_bnd, a0, b0);
+  add_inplace(a0, a1, span_a01);
+  add_inplace(b0, b1, span_b01);
+  auto prod_add = poly_mult_Karatsuba_step(next_bnd, span_a01, span_b01);
 
-  auto tmp1 = poly_sub(prod_add, prod0);
-  auto tmp2 = poly_sub(tmp1, prod1);
-  auto mid_term = poly_shift_up(next_bnd, tmp2);
-  auto high_term = poly_shift_up(deg_bnd, prod1);
-  auto higher = poly_add(mid_term, high_term);
-  return poly_add(prod0, higher);
+  auto span_prod0 = span(prod0);
+  auto span_prod1 = span(prod1);
+  auto span_prod_add = span(prod_add);
+
+  // adjust prod_add
+  sub_inplace(span_prod_add, span_prod0, span_prod_add);
+  sub_inplace(span_prod_add, span_prod1, span_prod_add);
+
+  // Add high term at X^deg_bnd position
+  auto span_result_high = span(result.begin() + deg_bnd, prod1.size());
+  add_inplace(span_prod1, span_result_high, span_result_high);
+
+  // Add middle term at X^next_bnd position
+  auto span_result_mid = span(result.begin() + next_bnd, span_prod_add.size());
+  add_inplace(span_prod_add, span_result_mid, span_result_mid);
+
+  // Add low term at X^0 position
+  auto span_result_low = span(result.begin(), prod0.size());
+  add_inplace(span_prod0, span_result_low, span_result_low);
+
+  return result;
 }
 
 template <typename R>
@@ -151,6 +165,8 @@ vector<R> poly_mult_Karatsuba(vector<R> &a, vector<R> &b) {
   while (deg_bound < max(a.size(), b.size()))
     deg_bound = deg_bound << 1;
 
+  a.resize(deg_bound);
+  b.resize(deg_bound);
   auto span_a = span(a);
   auto span_b = span(b);
   return poly_mult_Karatsuba_step(deg_bound, span_a, span_b);
