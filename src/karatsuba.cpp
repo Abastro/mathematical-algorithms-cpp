@@ -109,7 +109,7 @@ template <typename R> void poly_mult_basic_span(span<R> &a, span<R> &b, span<R> 
   }
 }
 
-// Basic polynomial multiplication
+// Basic polynomial multiplication.
 template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
   if (a.empty() && b.empty())
     return vector<R>(0);
@@ -123,10 +123,14 @@ template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
   return result;
 }
 
-#define THRESHOLD 32
+#define THRESHOLD 16
 
 /**
  * A step of the Karatsuba function.
+ *
+ * NOTE: interestingly, the basic case is quite a performance bottleneck.
+ * Hence, the basic case needs to be implemented well.
+ *
  * @param deg_bnd power-of-2 degree bound
  * @param buffer the buffer which is used only throughout the invocation
  */
