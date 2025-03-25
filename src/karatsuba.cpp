@@ -98,24 +98,32 @@ template <typename R> vector<R> poly_normalize(vector<R> &a) {
   return vector(a.begin(), a.begin() + i + 1);
 }
 
+// Computes basic multiplication, assuming result is initialized as 0 and has enough space
+template <typename R> void poly_mult_basic_span(span<R> &a, span<R> &b, span<R> &result) {
+  for (size_t i = 0; i < a.size(); i++) {
+    // Add at i-th position
+    auto at_ith = result.subspan(i, b.size());
+    for (size_t j = 0; j < b.size(); j++) {
+      at_ith[j] = at_ith[j] + a[i] * b[j];
+    }
+  }
+}
+
 // Basic polynomial multiplication
 template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
-  if (a.size() == 0 && b.size() == 0)
+  if (a.empty() && b.empty())
     return vector<R>(0);
-  auto res = vector<R>(a.size() + b.size() - 1, 0);
-  for (size_t i = 0; i < a.size(); i++) {
-    // Start with i 0s
-    auto tmp = vector<R>(i, 0);
-    for (R bj : b) {
-      tmp.push_back(a[i] * bj);
-    }
-    res = poly_add(res, tmp);
-  }
-  return res;
+
+  vector<R> result = vector<R> (a.size() + b.size() - 1);
+  auto span_a = span(a);
+  auto span_b = span(b);
+  auto span_result = span(result);
+  poly_mult_basic_span(span_a, span_b, span_result);
+
+  return result;
 }
 
 #define THRESHOLD 32
-// TODO Reduce allocations
 
 /**
  * A step of the Karatsuba function.
@@ -125,17 +133,14 @@ template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
 template <typename R>
 void poly_mult_Karatsuba_step(const size_t deg_bnd, span<R> &a, span<R> &b,
                               span<R> &result, span<R> &buffer) {
-  if (deg_bnd <= THRESHOLD) {
-    auto vec_a = vector(a.begin(), a.end());
-    auto vec_b = vector(b.begin(), b.end());
-    auto result_vec = poly_mult_basic(vec_a, vec_b);
-    copy(result_vec.begin(), result_vec.end(), result.begin());
-    return;
-  }
-
   // Result may be reused, so this needs clearing
   for (auto &entry : result)
     entry = 0;
+
+  if (deg_bnd <= THRESHOLD) {
+    poly_mult_basic_span(a, b, result);
+    return;
+  }
 
   const auto next_bnd = deg_bnd >> 1;
   auto a0 = a.subspan(0, next_bnd);
@@ -264,6 +269,8 @@ int main() {
   only_Karatsuba(32768);
   only_Karatsuba(65536);
   only_Karatsuba(131072);
+
+  only_Karatsuba(1 << 20);
 
   return 0;
 }
