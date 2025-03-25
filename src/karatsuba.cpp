@@ -22,7 +22,6 @@ template <typename T> ostream &operator<<(ostream &os, const vector<T> &v) {
   return os;
 }
 
-
 template <typename T> ostream &operator<<(ostream &os, const span<T> &v) {
   for (auto x : v) {
     os << x << " ";
@@ -90,8 +89,7 @@ void sub_inplace(span<R> &a, span<R> &b, span<R> &result) {
     result[i] = a[i] - b[i];
 }
 
-template <typename R>
-vector<R> poly_normalize(vector<R> &a) {
+template <typename R> vector<R> poly_normalize(vector<R> &a) {
   int i;
   for (i = a.size() - 1; i >= 0; i--) {
     if (a[i] != 0)
@@ -140,28 +138,22 @@ void poly_mult_Karatsuba_step(const size_t deg_bnd, span<R> &a, span<R> &b,
   auto a1 = a.subspan(next_bnd, next_bnd);
   auto b0 = b.subspan(0, next_bnd);
   auto b1 = b.subspan(next_bnd, next_bnd);
-  
-  auto a01 = buffer.subspan(0, next_bnd);
-  auto b01 = buffer.subspan(next_bnd, next_bnd);
+
+  auto store = vector<R>(next_bnd * 4);
+  auto a01 = span(store.begin() + 0, next_bnd);
+  auto b01 = span(store.begin() + next_bnd, next_bnd);
 
   auto prod0 = result.subspan(0, deg_bnd);
   auto prod1 = result.subspan(deg_bnd, deg_bnd);
-  auto prod_add = buffer.subspan(2 * next_bnd, deg_bnd);
-
-  // Buffer which does not overlap with currently used memory
-  // auto buffer_next = buffer.subspan(4 * next_bnd, 4 * next_bnd);
-  auto new_buffer_vec = vector<R>(4 * next_bnd);
-  auto new_buffer = span(new_buffer_vec);
-  auto new_buffer_2 = vector<R>(4 * next_bnd);
-  auto new_buffer_2 = span(new_buffer_2)
+  auto prod_add = span(store.begin() + 2 * next_bnd, deg_bnd);
 
   // correctly put into prod0 and prod1 position
-  poly_mult_Karatsuba_step(next_bnd, a0, b0, prod0, new_buffer); // need new_buffer to avoid rewrite; why?
-  poly_mult_Karatsuba_step(next_bnd, a1, b1, prod1, new_buffer);
+  poly_mult_Karatsuba_step(next_bnd, a0, b0, prod0, buffer);
+  poly_mult_Karatsuba_step(next_bnd, a1, b1, prod1, buffer);
 
   add_inplace(a0, a1, a01);
   add_inplace(b0, b1, b01);
-  poly_mult_Karatsuba_step(next_bnd, a01, b01, prod_add, new_buffer);
+  poly_mult_Karatsuba_step(next_bnd, a01, b01, prod_add, buffer);
 
   // adjust prod_add
   sub_inplace(prod_add, prod0, prod_add);
@@ -209,8 +201,11 @@ void basic_vs_Karatsuba(size_t size) {
   spent = chrono::duration<double>(end - begin);
   cout << "Karatsuba took " << spent.count() << "s" << endl;
 
-  if (basic != karat)
-    cout << "Mismatch" << endl;
+  if (poly_normalize(basic) == poly_normalize(karat))
+    cout << "+ Match" << endl;
+  else
+    cout << "- Mismatch" << endl;
+  cout << endl;
 }
 
 void only_Karatsuba(size_t size) {
@@ -245,8 +240,11 @@ int main() {
     auto q = random_int_vector(8);
     cout << "P: " << p << endl;
     cout << "Q: " << q << endl;
-    cout << "basic P * Q: " << poly_mult_basic(p, q) << endl;
-    cout << "Karatsuba P * Q: " << poly_mult_Karatsuba(p, q) << endl;
+    auto basic = poly_mult_basic(p, q);
+    cout << "basic P * Q: " << basic << endl;
+    auto karat = poly_mult_Karatsuba(p, q);
+    cout << "Karatsuba P * Q: " << karat << endl;
+    cout << endl;
   }
 
   basic_vs_Karatsuba(128);
@@ -257,7 +255,7 @@ int main() {
   basic_vs_Karatsuba(4096);
   basic_vs_Karatsuba(8192);
   basic_vs_Karatsuba(16384);
-  
+
   only_Karatsuba(32768);
   only_Karatsuba(65536);
   only_Karatsuba(131072);
