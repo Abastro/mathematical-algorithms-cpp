@@ -90,6 +90,16 @@ void sub_inplace(span<R> &a, span<R> &b, span<R> &result) {
     result[i] = a[i] - b[i];
 }
 
+template <typename R>
+vector<R> poly_normalize(vector<R> &a) {
+  int i;
+  for (i = a.size() - 1; i >= 0; i--) {
+    if (a[i] != 0)
+      break;
+  }
+  return vector(a.begin(), a.begin() + i + 1);
+}
+
 // Basic polynomial multiplication
 template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
   if (a.size() == 0 && b.size() == 0)
@@ -108,10 +118,6 @@ template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
 
 #define THRESHOLD 32
 // TODO Reduce allocations
-
-template <typename R> struct Karatsuba {
-  vector<R> result;
-};
 
 /**
  * A step of the Karatsuba function.
@@ -143,17 +149,19 @@ void poly_mult_Karatsuba_step(const size_t deg_bnd, span<R> &a, span<R> &b,
   auto prod_add = buffer.subspan(2 * next_bnd, deg_bnd);
 
   // Buffer which does not overlap with currently used memory
-  auto buffer_next = buffer.subspan(4 * next_bnd, 4 * next_bnd);
+  // auto buffer_next = buffer.subspan(4 * next_bnd, 4 * next_bnd);
   auto new_buffer_vec = vector<R>(4 * next_bnd);
   auto new_buffer = span(new_buffer_vec);
+  auto new_buffer_2 = vector<R>(4 * next_bnd);
+  auto new_buffer_2 = span(new_buffer_2)
 
   // correctly put into prod0 and prod1 position
   poly_mult_Karatsuba_step(next_bnd, a0, b0, prod0, new_buffer); // need new_buffer to avoid rewrite; why?
-  poly_mult_Karatsuba_step(next_bnd, a1, b1, prod1, buffer_next);
+  poly_mult_Karatsuba_step(next_bnd, a1, b1, prod1, new_buffer);
 
   add_inplace(a0, a1, a01);
   add_inplace(b0, b1, b01);
-  poly_mult_Karatsuba_step(next_bnd, a01, b01, prod_add, buffer_next);
+  poly_mult_Karatsuba_step(next_bnd, a01, b01, prod_add, new_buffer);
 
   // adjust prod_add
   sub_inplace(prod_add, prod0, prod_add);
@@ -190,16 +198,19 @@ void basic_vs_Karatsuba(size_t size) {
   cout << "Degree " << size - 1 << endl;
 
   auto begin = chrono::high_resolution_clock::now();
-  poly_mult_basic(p, q);
+  auto basic = poly_mult_basic(p, q);
   auto end = chrono::high_resolution_clock::now();
   auto spent = chrono::duration<double>(end - begin);
   cout << "Basic took " << spent.count() << "s" << endl;
 
   begin = chrono::high_resolution_clock::now();
-  poly_mult_Karatsuba(p, q);
+  auto karat = poly_mult_Karatsuba(p, q);
   end = chrono::high_resolution_clock::now();
   spent = chrono::duration<double>(end - begin);
   cout << "Karatsuba took " << spent.count() << "s" << endl;
+
+  if (basic != karat)
+    cout << "Mismatch" << endl;
 }
 
 void only_Karatsuba(size_t size) {
@@ -223,7 +234,9 @@ int main() {
     cout << "Q: " << q << endl;
     cout << "P + Q: " << poly_add(p, q) << endl;
     cout << "basic P * Q: " << poly_mult_basic(p, q) << endl;
-    cout << "Karatsuba P * Q: " << poly_mult_Karatsuba(p, q) << endl;
+    auto karat = poly_mult_Karatsuba(p, q);
+    cout << "Karatsuba P * Q: " << karat << endl;
+    cout << "normalized: " << poly_normalize(karat) << endl;
     cout << endl;
   }
 
