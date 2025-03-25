@@ -133,6 +133,10 @@ void poly_mult_Karatsuba_step(const size_t deg_bnd, span<R> &a, span<R> &b,
     return;
   }
 
+  // Result may be reused, so this needs clearing
+  for (auto &entry : result)
+    entry = 0;
+
   const auto next_bnd = deg_bnd >> 1;
   auto a0 = a.subspan(0, next_bnd);
   auto a1 = a.subspan(next_bnd, next_bnd);
@@ -144,8 +148,7 @@ void poly_mult_Karatsuba_step(const size_t deg_bnd, span<R> &a, span<R> &b,
 
   auto prod0 = result.subspan(0, deg_bnd);
   auto prod1 = result.subspan(deg_bnd, deg_bnd);
-  auto prod_add_vec = vector<R>(deg_bnd);
-  auto prod_add = span(prod_add_vec);
+  auto prod_add = buffer.subspan(next_bnd * 2, next_bnd * 2);
 
   auto next_buffer = buffer.subspan(next_bnd * 4, next_bnd * 4);
 
