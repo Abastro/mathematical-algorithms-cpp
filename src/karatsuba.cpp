@@ -139,21 +139,23 @@ void poly_mult_Karatsuba_step(const size_t deg_bnd, span<R> &a, span<R> &b,
   auto b0 = b.subspan(0, next_bnd);
   auto b1 = b.subspan(next_bnd, next_bnd);
 
-  auto store = vector<R>(next_bnd * 4);
-  auto a01 = span(store.begin() + 0, next_bnd);
-  auto b01 = span(store.begin() + next_bnd, next_bnd);
+  auto a01 = buffer.subspan(0, next_bnd);
+  auto b01 = buffer.subspan(next_bnd, next_bnd);
 
   auto prod0 = result.subspan(0, deg_bnd);
   auto prod1 = result.subspan(deg_bnd, deg_bnd);
-  auto prod_add = span(store.begin() + 2 * next_bnd, deg_bnd);
+  auto prod_add_vec = vector<R>(deg_bnd);
+  auto prod_add = span(prod_add_vec);
+
+  auto next_buffer = buffer.subspan(next_bnd * 4, next_bnd * 4);
 
   // correctly put into prod0 and prod1 position
-  poly_mult_Karatsuba_step(next_bnd, a0, b0, prod0, buffer);
-  poly_mult_Karatsuba_step(next_bnd, a1, b1, prod1, buffer);
+  poly_mult_Karatsuba_step(next_bnd, a0, b0, prod0, next_buffer);
+  poly_mult_Karatsuba_step(next_bnd, a1, b1, prod1, next_buffer);
 
   add_inplace(a0, a1, a01);
   add_inplace(b0, b1, b01);
-  poly_mult_Karatsuba_step(next_bnd, a01, b01, prod_add, buffer);
+  poly_mult_Karatsuba_step(next_bnd, a01, b01, prod_add, next_buffer);
 
   // adjust prod_add
   sub_inplace(prod_add, prod0, prod_add);
