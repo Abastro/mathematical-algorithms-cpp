@@ -124,6 +124,7 @@ template <typename R> vector<R> poly_mult_basic(vector<R> &a, vector<R> &b) {
 }
 
 #define THRESHOLD 16
+// #define THRESHOLD 1
 
 /**
  * A step of the Karatsuba function.
