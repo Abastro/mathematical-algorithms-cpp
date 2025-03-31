@@ -10,4 +10,4 @@ add_compile_options(-Wall -Wextra -Wpedantic -O2 -funroll-loops)
 
 add_executable(karatsuba src/karatsuba.cpp)
 add_executable(pseudorandom src/pseudorandom.cpp)
-add_executable(types src/types.cpp)
+add_executable(multivar src/multivar.cpp)
