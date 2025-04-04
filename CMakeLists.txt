@@ -7,6 +7,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -funroll-loops")
 
 add_compile_options(-Wall -Wextra -Wpedantic -O2 -funroll-loops)
+# add_compile_options(-Wall -Wextra -Wpedantic -O1)
 
 add_executable(karatsuba src/karatsuba.cpp)
 add_executable(pseudorandom src/pseudorandom.cpp)
