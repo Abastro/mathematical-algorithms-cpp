@@ -38,7 +38,8 @@ int lexi_compare(const monomial<R> &lhs, const monomial<R> &rhs) {
 }
 
 /**
- * Ordered according to lexicographic order
+ * Ordered according to lexicographic order,
+ * from the smallest to largest
  * @tparam R ring
  */
 template<typename R>
@@ -97,8 +98,9 @@ multipoly<R> operator+(const multipoly<R> &lhs, const multipoly<R> &rhs) {
 template <typename R>
 multipoly<R> operator-(const multipoly<R> &lhs, const multipoly<R> &rhs) {
   auto result = lhs;
+  monomial<R> negate_rhs;
   for (auto &rhs_mono : rhs.monomials) {
-    auto negate_rhs = rhs_mono;
+    negate_rhs = rhs_mono;
     negate_rhs.coefficient = -negate_rhs.coefficient;
     add_monomial(result, negate_rhs);
   }
@@ -118,9 +120,9 @@ bool is_zero(multipoly<R> &poly) {
 }
 
 int main() {
-  auto m1 = monomial{2, vector<size_t>{3, 4}};
-  auto m2 = monomial{2, vector<size_t>{4, 2}};
-  auto m3 = monomial{3, vector<size_t>{3, 2}};
+  const auto m1 = monomial{2, vector<size_t>{3, 4}};
+  const auto m2 = monomial{2, vector<size_t>{4, 2}};
+  const auto m3 = monomial{3, vector<size_t>{3, 2}};
   cout << "m1, m2, m3: " << m1 << ", " << m2 << ", " << m3 << endl;
   cout << "compare m1, m2: " << lexi_compare(m1, m2) << endl;
   cout << "compare m1, m3: " << lexi_compare(m1, m3) << endl;
